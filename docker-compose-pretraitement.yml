@@ -8,9 +8,8 @@ services:
       - ./data:/data
     environment:
       - PROFILE
-      - REGION  # On ajoute la région ici
     entrypoint: >
-      sh -c "osrm-extract -p /opt/${PROFILE}.lua /data/${REGION}-latest-${PROFILE}.osm.pbf"
+      sh -c "osrm-extract -p /opt/${PROFILE}.lua /data/combined-latest-${PROFILE}.osm.pbf"
 
   osrm-partition:
     image: osrm/osrm-backend
@@ -22,9 +21,8 @@ services:
         condition: service_completed_successfully
     environment:
       - PROFILE
-      - REGION
     entrypoint: >
-      sh -c "osrm-partition /data/${REGION}-latest-${PROFILE}.osrm"
+      sh -c "osrm-partition /data/combined-latest-${PROFILE}.osrm"
 
   osrm-customize:
     image: osrm/osrm-backend
@@ -36,6 +34,5 @@ services:
         condition: service_completed_successfully
     environment:
       - PROFILE
-      - REGION
     entrypoint: >
-      sh -c "osrm-customize /data/${REGION}-latest-${PROFILE}.osrm"
+      sh -c "osrm-customize /data/combined-latest-${PROFILE}.osrm"

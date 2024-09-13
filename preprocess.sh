@@ -17,28 +17,32 @@ if [[ "$PROFILE" != "car" && "$PROFILE" != "bicycle" && "$PROFILE" != "foot" ]];
 fi
 
 # Liste des régions à télécharger et traiter
-REGIONS=("provence-alpes-cote-d-azur" "languedoc-roussillon")  # Ajoute d'autres régions ici
+REGIONS=("provence-alpes-cote-d-azur" "languedoc-roussillon")  # Ajoute d'autres régions ici si besoin
 
 # Créer le dossier data si ce n'est pas déjà fait
 mkdir -p data
 
-# Boucle sur les régions pour télécharger et préparer les fichiers
+# Télécharger les extraits OSM pour chaque région
 for REGION in "${REGIONS[@]}"; do
   OSM_FILE="data/${REGION}-latest.osm.pbf"
-  PROFILE_OSM_FILE="data/${REGION}-latest-${PROFILE}.osm.pbf"
-
-  # Télécharger l'extrait OSM si ce n'est pas déjà fait
   if [ ! -f "$OSM_FILE" ]; then
     echo "Téléchargement des données pour $REGION..."
     wget -O "$OSM_FILE" "http://download.geofabrik.de/europe/france/${REGION}-latest.osm.pbf"
   fi
-
-  # Créer le fichier spécifique au profil si non existant
-  if [ ! -f "$PROFILE_OSM_FILE" ]; then
-    echo "Préparation du fichier pour $REGION avec le profil $PROFILE..."
-    cp "$OSM_FILE" "$PROFILE_OSM_FILE"
-  fi
-
-  # Exécuter les étapes de prétraitement avec docker-compose
-  REGION=${REGION} PROFILE=${PROFILE} docker-compose -f docker-compose-pretraitement.yml up
 done
+
+# Fusionner les fichiers OSM des régions
+if [ ! -f data/combined-latest.osm.pbf ]; then
+  echo "Fusion des fichiers OSM pour les régions : ${REGIONS[*]}"
+  osmium merge $(for REGION in "${REGIONS[@]}"; do echo -n "data/${REGION}-latest.osm.pbf "; done) -o data/combined-latest.osm.pbf
+fi
+
+# Créer le fichier spécifique au profil si non existant
+if [ ! -f data/combined-latest-${PROFILE}.osm.pbf ]; then
+  echo "Création du fichier spécifique au profil $PROFILE..."
+  cp data/combined-latest.osm.pbf data/combined-latest-${PROFILE}.osm.pbf
+fi
+
+# Exécuter les étapes de prétraitement avec docker-compose
+echo "Exécution du prétraitement avec docker-compose pour le profil $PROFILE..."
+PROFILE=${PROFILE} docker-compose -f docker-compose-pretraitement.yml up
