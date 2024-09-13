@@ -1,0 +1,8 @@
+# Utiliser l'image de base construite précédemment
+FROM osrm-backend-arm:latest
+
+# Définir le répertoire de travail
+WORKDIR /data
+
+# Définir le point d'entrée pour l'exécution
+ENTRYPOINT ["osrm-routed"]

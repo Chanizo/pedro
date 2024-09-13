@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  osrm-extract:
+    image: osrm/osrm-backend
+    container_name: osrm-extract
+    volumes:
+      - ./data:/data
+    environment:
+      - PROFILE
+    entrypoint: >
+      sh -c "osrm-extract -p /opt/${PROFILE}.lua /data/provence-alpes-cote-d-azur-latest-${PROFILE}.osm.pbf"
+
+  osrm-partition:
+    image: osrm/osrm-backend
+    container_name: osrm-partition
+    volumes:
+      - ./data:/data
+    depends_on:
+      osrm-extract:
+        condition: service_completed_successfully
+    environment:
+      - PROFILE
+    entrypoint: >
+      sh -c "osrm-partition /data/provence-alpes-cote-d-azur-latest-${PROFILE}.osrm"
+
+  osrm-customize:
+    image: osrm/osrm-backend
+    container_name: osrm-customize
+    volumes:
+      - ./data:/data
+    depends_on:
+      osrm-partition:
+        condition: service_completed_successfully
+    environment:
+      - PROFILE
+    entrypoint: >
+      sh -c "osrm-customize /data/provence-alpes-cote-d-azur-latest-${PROFILE}.osrm"
