@@ -8,7 +8,7 @@ services:
       - ./data:/data
     ports:
       - "5001:5000"
-    entrypoint: [ "osrm-routed", "--algorithm", "mld", "/data/provence-alpes-cote-d-azur-latest-foot.osrm" ]
+    entrypoint: [ "osrm-routed", "--algorithm", "mld", "/data/provence-alpes-cote-d-azur-latest-foot.osrm", "/data/languedoc-roussillon-latest-foot.osrm" ]
   osrm-backend-bicycle:
     image: osrm/osrm-backend
     container_name: osrm-backend-bicycle
@@ -16,4 +16,4 @@ services:
       - ./data:/data
     ports:
       - "5002:5000"
-    entrypoint: [ "osrm-routed", "--algorithm", "mld", "/data/provence-alpes-cote-d-azur-latest-bicycle.osrm" ]
+    entrypoint: [ "osrm-routed", "--algorithm", "mld", "/data/provence-alpes-cote-d-azur-latest-bicycle.osrm", "/data/languedoc-roussillon-latest-bicycle.osrm" ]

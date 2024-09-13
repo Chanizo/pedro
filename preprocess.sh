@@ -3,6 +3,7 @@
 # Vérifier si un profil est fourni
 if [ -z "$1" ]; then
   echo "Usage: $0 <profile>"
+  echo "Les profils valides sont : car, bicycle, foot"
   exit 1
 fi
 
@@ -15,23 +16,29 @@ if [[ "$PROFILE" != "car" && "$PROFILE" != "bicycle" && "$PROFILE" != "foot" ]];
   exit 1
 fi
 
+# Liste des régions à télécharger et traiter
+REGIONS=("provence-alpes-cote-d-azur" "languedoc-roussillon")  # Ajoute d'autres régions ici
+
 # Créer le dossier data si ce n'est pas déjà fait
 mkdir -p data
 
-# osrm-extract n'accepte pas d'option pour spécifier le nom du fichier d'output
-# on utilise copie donc le fichier de base avec un nouveau nom, les liens symboliques ne marchent pas (à creuser)
-if [ ! -f data/provence-alpes-cote-d-azur-latest-${PROFILE}.osm.pbf ]; then
+# Boucle sur les régions pour télécharger et préparer les fichiers
+for REGION in "${REGIONS[@]}"; do
+  OSM_FILE="data/${REGION}-latest.osm.pbf"
+  PROFILE_OSM_FILE="data/${REGION}-latest-${PROFILE}.osm.pbf"
+
   # Télécharger l'extrait OSM si ce n'est pas déjà fait
-  if [ ! -f data/provence-alpes-cote-d-azur-latest.osm.pbf ]; then
-    wget -O data/provence-alpes-cote-d-azur-latest.osm.pbf http://download.geofabrik.de/europe/france/provence-alpes-cote-d-azur-latest.osm.pbf
+  if [ ! -f "$OSM_FILE" ]; then
+    echo "Téléchargement des données pour $REGION..."
+    wget -O "$OSM_FILE" "http://download.geofabrik.de/europe/france/${REGION}-latest.osm.pbf"
   fi
-  cp data/provence-alpes-cote-d-azur-latest.osm.pbf data/provence-alpes-cote-d-azur-latest-${PROFILE}.osm.pbf
-fi
 
-##### NE MARCHE PAS avec Docker :( => à creuser ?
-# osrm-extract n'accepte pas d'option pour spécifier le nom du fichier d'output
-# on utilise donc des liens symboliques pour tricher sur le nom du fichier en entrée sur lequel sera basé le nom en sortie
-# ln -s data/provence-alpes-cote-d-azur-latest.osm.pbf data/provence-alpes-cote-d-azur-latest-${PROFILE}.osm.pbf
+  # Créer le fichier spécifique au profil si non existant
+  if [ ! -f "$PROFILE_OSM_FILE" ]; then
+    echo "Préparation du fichier pour $REGION avec le profil $PROFILE..."
+    cp "$OSM_FILE" "$PROFILE_OSM_FILE"
+  fi
 
-# Exécuter les étapes de prétraitement avec docker-compose
-PROFILE=${PROFILE} docker-compose -f docker-compose-pretraitement.yml up
+  # Exécuter les étapes de prétraitement avec docker-compose
+  REGION=${REGION} PROFILE=${PROFILE} docker-compose -f docker-compose-pretraitement.yml up
+done

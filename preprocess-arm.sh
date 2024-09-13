@@ -15,24 +15,41 @@ if [[ "$PROFILE" != "car" && "$PROFILE" != "bicycle" && "$PROFILE" != "foot" ]];
   exit 1
 fi
 
-echo "execution avec le profile $PROFILE"
+echo "Exécution avec le profil $PROFILE"
+
+# Liste des régions à télécharger et traiter
+REGIONS=("provence-alpes-cote-d-azur" "languedoc-roussillon")  # Ajoute d'autres régions ici si besoin
 
 # Créer le dossier data si ce n'est pas déjà fait
 mkdir -p data
 
-# osrm-extract n'accepte pas d'option pour spécifier le nom du fichier d'output
-# on utilise copie donc le fichier de base avec un nouveau nom, les liens symboliques ne marchent pas (à creuser)
-if [ ! -f data/provence-alpes-cote-d-azur-latest-${PROFILE}.osm.pbf ]; then
+# Boucle sur les régions pour télécharger et préparer les fichiers
+for REGION in "${REGIONS[@]}"; do
+  OSM_FILE="data/${REGION}-latest.osm.pbf"
+  PROFILE_OSM_FILE="data/${REGION}-latest-${PROFILE}.osm.pbf"
+
   # Télécharger l'extrait OSM si ce n'est pas déjà fait
-  if [ ! -f data/provence-alpes-cote-d-azur-latest.osm.pbf ]; then
-    wget -O data/provence-alpes-cote-d-azur-latest.osm.pbf http://download.geofabrik.de/europe/france/provence-alpes-cote-d-azur-latest.osm.pbf
+  if [ ! -f "$OSM_FILE" ]; then
+    echo "Téléchargement des données pour $REGION..."
+    wget -O "$OSM_FILE" "http://download.geofabrik.de/europe/france/${REGION}-latest.osm.pbf"
   fi
-  cp data/provence-alpes-cote-d-azur-latest.osm.pbf data/provence-alpes-cote-d-azur-latest-${PROFILE}.osm.pbf
-fi
 
-docker buildx build --platform linux/arm64 -t osrm-backend-arm:latest .
+  # Créer le fichier spécifique au profil si non existant
+  if [ ! -f "$PROFILE_OSM_FILE" ]; then
+    echo "Préparation du fichier pour $REGION avec le profil $PROFILE..."
+    cp "$OSM_FILE" "$PROFILE_OSM_FILE"
+  fi
 
-# Exécuter les étapes de prétraitement avec Docker
-docker run --rm -v ./data:/data osrm-backend-arm:latest osrm-extract -p /opt/${PROFILE}.lua /data/provence-alpes-cote-d-azur-latest-${PROFILE}.osm.pbf
-docker run --rm -v ./data:/data osrm-backend-arm:latest osrm-partition /data/provence-alpes-cote-d-azur-latest-${PROFILE}.osrm
-docker run --rm -v ./data:/data osrm-backend-arm:latest osrm-customize /data/provence-alpes-cote-d-azur-latest-${PROFILE}.osrm
+  # Construction de l'image Docker pour ARM
+  docker buildx build --platform linux/arm64 -t osrm-backend-arm:latest .
+
+  # Exécuter les étapes de prétraitement avec Docker
+  echo "Extraction des données pour $REGION avec le profil $PROFILE..."
+  docker run --rm -v $(pwd)/data:/data osrm-backend-arm:latest osrm-extract -p /opt/${PROFILE}.lua /data/${REGION}-latest-${PROFILE}.osm.pbf
+
+  echo "Partitionnement des données pour $REGION..."
+  docker run --rm -v $(pwd)/data:/data osrm-backend-arm:latest osrm-partition /data/${REGION}-latest-${PROFILE}.osrm
+
+  echo "Personnalisation des données pour $REGION..."
+  docker run --rm -v $(pwd)/data:/data osrm-backend-arm:latest osrm-customize /data/${REGION}-latest-${PROFILE}.osrm
+done
