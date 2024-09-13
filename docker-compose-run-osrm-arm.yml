@@ -8,7 +8,7 @@ services:
       - ./data:/data
     ports:
       - "5001:5000"
-    entrypoint: [ "osrm-routed", "--algorithm", "mld", "/data/provence-alpes-cote-d-azur-latest-foot.osrm" ]
+    entrypoint: [ "osrm-routed", "--algorithm", "mld", "/data/donnees-latest-foot.osrm" ]
 
   osrm-backend-bicycle:
     image: osrm-backend-arm-run:latest
@@ -17,4 +17,4 @@ services:
       - ./data:/data
     ports:
       - "5002:5000"
-    entrypoint: [ "osrm-routed", "--algorithm", "mld", "/data/provence-alpes-cote-d-azur-latest-bicycle.osrm" ]
+    entrypoint: [ "osrm-routed", "--algorithm", "mld","/data/donnees-latest-bicycle.osrm" ]

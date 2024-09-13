@@ -3,6 +3,7 @@
 # Vérifier si un profil est fourni
 if [ -z "$1" ]; then
   echo "Usage: $0 <profile>"
+  echo "Les profils valides sont : car, bicycle, foot"
   exit 1
 fi
 
@@ -23,33 +24,50 @@ REGIONS=("provence-alpes-cote-d-azur" "languedoc-roussillon")  # Ajoute d'autres
 # Créer le dossier data si ce n'est pas déjà fait
 mkdir -p data
 
-# Boucle sur les régions pour télécharger et préparer les fichiers
-for REGION in "${REGIONS[@]}"; do
-  OSM_FILE="data/${REGION}-latest.osm.pbf"
-  PROFILE_OSM_FILE="data/${REGION}-latest-${PROFILE}.osm.pbf"
+# Fusionner les fichiers .osm.pbf des régions
+MERGED_OSM_FILE="data/donnees-latest-${PROFILE}.osm.pbf"
 
-  # Télécharger l'extrait OSM si ce n'est pas déjà fait
-  if [ ! -f "$OSM_FILE" ]; then
-    echo "Téléchargement des données pour $REGION..."
-    wget -O "$OSM_FILE" "http://download.geofabrik.de/europe/france/${REGION}-latest.osm.pbf"
+# Si le fichier fusionné n'existe pas déjà
+if [ ! -f "$MERGED_OSM_FILE" ]; then
+  echo "Fusion des fichiers .osm.pbf pour créer $MERGED_OSM_FILE..."
+
+  # Boucle pour télécharger les fichiers de chaque région
+  for REGION in "${REGIONS[@]}"; do
+    OSM_FILE="data/${REGION}-latest.osm.pbf"
+
+    # Télécharger l'extrait OSM si ce n'est pas déjà fait
+    if [ ! -f "$OSM_FILE" ]; then
+      echo "Téléchargement des données pour $REGION..."
+      wget -O "$OSM_FILE" "http://download.geofabrik.de/europe/france/${REGION}-latest.osm.pbf"
+    fi
+  done
+
+  # Fusion des fichiers OSM avec osmosis ou osmium (selon ce qui est disponible sur ton système)
+  if command -v osmosis &> /dev/null; then
+    osmosis \
+      --read-pbf file="data/provence-alpes-cote-d-azur-latest.osm.pbf" \
+      --read-pbf file="data/languedoc-roussillon-latest.osm.pbf" \
+      --merge \
+      --write-pbf file="$MERGED_OSM_FILE"
+  elif command -v osmium &> /dev/null; then
+    osmium merge data/*.osm.pbf -o "$MERGED_OSM_FILE"
+  else
+    echo "Osmosis ou Osmium n'est pas installé. Veuillez installer l'un d'eux pour fusionner les fichiers .osm.pbf."
+    exit 1
   fi
+fi
 
-  # Créer le fichier spécifique au profil si non existant
-  if [ ! -f "$PROFILE_OSM_FILE" ]; then
-    echo "Préparation du fichier pour $REGION avec le profil $PROFILE..."
-    cp "$OSM_FILE" "$PROFILE_OSM_FILE"
-  fi
+# Construction de l'image Docker pour ARM
+docker buildx build --platform linux/arm64 -t osrm-backend-arm:latest .
 
-  # Construction de l'image Docker pour ARM
-  docker buildx build --platform linux/arm64 -t osrm-backend-arm:latest .
+# Exécuter les étapes de prétraitement avec Docker sur le fichier fusionné
+echo "Extraction des données pour le profil $PROFILE..."
+docker run --rm -v $(pwd)/data:/data osrm-backend-arm:latest osrm-extract -p /opt/${PROFILE}.lua /data/donnees-latest-${PROFILE}.osm.pbf
 
-  # Exécuter les étapes de prétraitement avec Docker
-  echo "Extraction des données pour $REGION avec le profil $PROFILE..."
-  docker run --rm -v $(pwd)/data:/data osrm-backend-arm:latest osrm-extract -p /opt/${PROFILE}.lua /data/${REGION}-latest-${PROFILE}.osm.pbf
+echo "Partitionnement des données..."
+docker run --rm -v $(pwd)/data:/data osrm-backend-arm:latest osrm-partition /data/donnees-latest-${PROFILE}.osrm
 
-  echo "Partitionnement des données pour $REGION..."
-  docker run --rm -v $(pwd)/data:/data osrm-backend-arm:latest osrm-partition /data/${REGION}-latest-${PROFILE}.osrm
+echo "Personnalisation des données..."
+docker run --rm -v $(pwd)/data:/data osrm-backend-arm:latest osrm-customize /data/donnees-latest-${PROFILE}.osrm
 
-  echo "Personnalisation des données pour $REGION..."
-  docker run --rm -v $(pwd)/data:/data osrm-backend-arm:latest osrm-customize /data/${REGION}-latest-${PROFILE}.osrm
-done
+echo "Traitement terminé avec succès pour le profil $PROFILE"
