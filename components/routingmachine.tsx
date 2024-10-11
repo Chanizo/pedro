@@ -35,7 +35,8 @@ const createRoutineMachineLayer = ({ waypoints }: { waypoints: L.LatLng[] }) => 
                 return L.marker(waypoint.latLng, { icon: endIcon, draggable: true});
             }
             return L.marker(waypoint.latLng);
-        }
+        },
+        router: L.Routing.osrmv1({serviceUrl: 'http://127.0.0.1:5001/route/v1', profile: 'foot'})
     });
 
     return instance;
