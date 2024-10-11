@@ -2,15 +2,12 @@
 
 
 import 'leaflet/dist/leaflet.css';
-import 'leaflet-geosearch/dist/geosearch.css';
 import 'leaflet-defaulticon-compatibility/dist/leaflet-defaulticon-compatibility.webpack.css';
-import 'leaflet-geosearch/dist/geosearch.css';
-import 'leaflet-routing-machine/dist/leaflet-routing-machine.css';
+
 
 import 'leaflet-defaulticon-compatibility';
 
 import {GeoJSON, MapContainer, TileLayer} from 'react-leaflet'
-import RoutingMachine from "@/components/routingmachine";
 import {LatLng} from "leaflet";
 import {useEffect, useState} from "react";
 
@@ -46,7 +43,6 @@ export default function MyMap() {
         fillColor: 'blue',
         fillOpacity: 0.3
       }}/>}
-      <RoutingMachine start={maisonDePedro}/>
     </MapContainer>
   )
 }
